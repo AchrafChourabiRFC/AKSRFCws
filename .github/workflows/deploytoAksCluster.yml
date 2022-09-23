@@ -1,0 +1,50 @@
+on: [push]
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    
+    - uses: azure/docker-login@v1
+      with:
+        login-server: aksregistryrfc.azurecr.io
+        username: ${{ secrets.acr_aksregistryrfc_username }}
+        password: ${{ secrets.acr_aksregistryrfc_password }}
+    
+    - name: Build and push image to ACR
+      id: build-image
+      run: |
+        docker build "$GITHUB_WORKSPACE/" -f  "Dockerfile" -t aksregistryrfc.azurecr.io/myrfcworkshopcluster:${{ github.sha }} --label dockerfile-path=Dockerfile
+        docker push aksregistryrfc.azurecr.io/myrfcworkshopcluster:${{ github.sha }}
+    
+    - uses: azure/k8s-set-context@v1
+      with:
+         kubeconfig: ${{ secrets.aks_myrfcworkshopcluster_kubeConfig }}
+      id: login
+    
+    - name: Create namespace
+      run: |
+        namespacePresent=`kubectl get namespace | grep myrfcworkshopclusterb8cd | wc -l`
+        if [ $namespacePresent -eq 0 ]
+        then
+            echo `kubectl create namespace myrfcworkshopclusterb8cd`
+        fi
+
+    - uses: azure/k8s-create-secret@v1
+      with:
+        namespace: myrfcworkshopclusterb8cd
+        container-registry-url: aksregistryrfc.azurecr.io
+        container-registry-username: ${{ secrets.acr_aksregistryrfc_username }}
+        container-registry-password: ${{ secrets.acr_aksregistryrfc_password }}
+        secret-name: myrfcworkshodockerauth
+       
+    - uses: azure/k8s-deploy@v1.2
+      with:
+        namespace: myrfcworkshopclusterb8cd
+        manifests: |
+          manifests/deployment.yml
+          manifests/service.yml
+        images: |
+          aksregistryrfc.azurecr.io/myrfcworkshopcluster:${{ github.sha }}
+        imagepullsecrets: |
+          myrfcworkshodockerauth
