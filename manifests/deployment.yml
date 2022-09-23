@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: "myrfcworkshopcluster-7dc2"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: "myrfcworkshopcluster-7dc2"
+  template:
+    metadata:
+      labels:
+        app: "myrfcworkshopcluster-7dc2"
+    spec:
+      containers:
+        - name: "myrfcworkshopcluster-7dc2"
+          image: "aksregistryrfc.azurecr.io/myrfcworkshopcluster"
+          ports:
+          - containerPort: 80
